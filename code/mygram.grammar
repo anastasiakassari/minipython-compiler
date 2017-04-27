@@ -1,0 +1,212 @@
+/*Kassari Anastasia 3130088
+Giannakopoulos Theodoros 3120027
+Gardelis Stavros Konstantinos 3130032
+Kapniaris Alexandros 3130084 
+Omada 1 gia exetasi tin Triti 22/11. Pantreuthke h aderfh tou thodwra */
+
+Package mygram;
+
+Helpers
+	digit = ['0' .. '9'];
+	letter = ['a' .. 'z']|['A' .. 'Z']; 
+
+	carriage_return = 13;
+	line_feed = 10;
+	
+	any_character = [0..127]; 
+	
+	space = 32;			
+	quote = 34;			
+	apostrophe  = 39;	
+	
+	end_of_line = line_feed | carriage_return | carriage_return line_feed ;
+	not_end_of_line = [any_character - [carriage_return + line_feed]]; 
+
+Tokens
+	
+	plus_plus = '++';
+	plus = '+';
+	
+	minus_equal = '-=';
+	minus_minus = '--';	
+	minus = '-';
+	
+	mult = '*';	
+	
+	div_equal = '/=';
+	div = '/';
+	
+	
+	logic_equal = '==';
+	equal = '=';
+	
+	
+	
+	comma = ',';		
+	semicolon = ':';	
+
+	def = 'def';
+	
+	
+	left_parenthesis = '(';
+	right_parenthesis = ')';
+	left_bracket = '[';
+	right_bracket = ']';
+	
+	
+	if = 'if';	
+	for = 'for';
+	in = 'in';
+	while = 'while';
+	print = 'print';
+	return = 'return';
+	
+	less = '<';
+	greater = '>';
+	logic_not_equal = '!=';
+	
+	true = 'true';
+	false = 'false';
+	
+	tab = 9 | space space space space;
+	blank = (space | line_feed | carriage_return);
+	line_comment = '#' not_end_of_line* end_of_line; 
+	
+	num = digit+ | (digit+ '.' digit+);
+	id = letter (letter | digit)*;	
+	string = quote not_end_of_line* quote | apostrophe not_end_of_line* apostrophe;
+
+Ignored Tokens
+	blank, line_comment;
+
+Productions
+	
+	goal = {command} command*  {-> New goal([command])};
+			
+	command = 	{function_call} function {-> New command.function(function)}|
+						{statement_call} statement {-> New command.statement(statement)};
+	
+	function = {function} def id left_parenthesis argument? right_parenthesis semicolon statement
+				{-> New function.define(id, argument, statement)};
+	
+	argument = {argument} id equal_value? {-> New argument.single(id, equal_value)}|
+				{arguments} argument comma id equal_value? {-> New argument.listof(argument, id, equal_value)};
+				
+	equal_value = {value} equal value {-> New equal_value.equal(value)};
+	
+	statement = 	{if_statement}tab* if logical_equalities semicolon statement {-> New statement.if(logical_equalities.comparison, statement)}|
+					{assign}tab* id equal expr_add_sub {-> New statement.assign(id, expr_add_sub.expression)}|
+					{print}tab* print expr_add_sub {-> New statement.print(expr_add_sub.expression)} |
+					{while_statement} tab* while logical_equalities semicolon statement {-> New statement.while(logical_equalities.comparison, statement)}|
+					{for_statement} tab* for [first_identifier]:id in [following_identifier]:id semicolon statement {-> New statement.for(first_identifier, following_identifier, statement)}|
+					{return_statement} tab* return expr_add_sub {-> New statement.return(expr_add_sub.expression)} |
+					{minus_equal_statement} tab* id minus_equal expr_add_sub {-> New statement.minus_equal(id, expr_add_sub.expression)} |
+					{div_equal_statement} tab* id div_equal expr_add_sub {-> New statement.div_equal(id, expr_add_sub.expression)}|
+					{array_assignment} tab* id left_bracket [first_expression]:expr_add_sub right_bracket equal [following_expression]:expr_add_sub {-> New statement.array_assign(id, first_expression.expression, following_expression.expression)}|
+					{functioncall_statement}tab* functioncall {-> New statement.function_call(functioncall)};
+
+	
+	logical_equalities {-> comparison} = 	{comparison} comparison {-> comparison}|					
+											{logic_equal} [first_expression]:comparison logic_equal [following_expression]:comparison {-> New comparison.equal(first_expression, following_expression)}|
+											{logic_not_equal} [first_expression]:comparison logic_not_equal [following_expression]:comparison {-> New comparison.not_equal(first_expression, following_expression)};
+		
+	comparison {-> comparison} = 	{true_false} true_false {-> true_false.comparison}|
+									{greater} [first_expression]:expr_add_sub greater [following_expression]:expr_add_sub {-> New comparison.greater(first_expression.expression, following_expression.expression)}|
+									{less} [first_expression]:expr_add_sub less [following_expression]:expr_add_sub{-> New comparison.less(first_expression.expression, following_expression.expression)};
+					
+	true_false {-> comparison} =	{comp_expression} expr_add_sub {-> New comparison.expression(expr_add_sub.expression)}|
+									{true} true {-> New comparison.true(true)}|
+									{false} false {-> New comparison.false(false)};
+							
+	expr_add_sub {-> expression} = 	{expr_mul_div} expr_mul_div {-> expr_mul_div.expression}|
+									{addition} expr_add_sub plus expr_mul_div {-> New expression.addition(expr_add_sub.expression, expr_mul_div.expression)}|
+									{substraction} expr_add_sub minus expr_mul_div {-> New expression.substraction(expr_add_sub.expression, expr_mul_div.expression)};
+				
+	expr_mul_div {-> expression} = 	{expr_terminal} expr_terminal {-> expr_terminal.expression}|
+									{multiplication} expr_mul_div mult expr_terminal {-> New expression.multiplication(expr_mul_div.expression, expr_terminal.expression)}|
+									{division} expr_mul_div div expr_terminal {-> New expression.division(expr_mul_div.expression, expr_terminal.expression)}|
+									{postfix_oper} postfix_oper {-> postfix_oper.expression};
+				
+	postfix_oper {-> expression} =  {prefix_oper} prefix_oper {-> prefix_oper.expression}|
+									{left_increase} id_expressions plus_plus {-> New expression.postfix_increase(id_expressions.expression)}|
+									{left_decrease} id_expressions minus_minus {-> New expression.postfix_decrease(id_expressions.expression)};	
+	
+	prefix_oper {-> expression} = 	{right_increase} plus_plus id_expressions {-> New expression.prefix_increase(id_expressions.expression)}|
+									{right_decrease} minus_minus id_expressions {-> New expression.prefix_decrease(id_expressions.expression)};
+	
+	id_expressions {-> expression} = {identifier} id {-> New expression.identifier(id)}|
+									 {array_with_id} id left_bracket expr_add_sub right_bracket {-> New expression.array_with_id(id, expr_add_sub.expression)};
+	
+	expr_terminal {-> expression} = {function_call} functioncall {-> New expression.function_call(functioncall)}|
+									{id_expressions} id_expressions {-> id_expressions.expression}|
+									{value} value {-> New expression.value(value)}|
+									{parenthesis} left_parenthesis expr_add_sub right_parenthesis {-> expr_add_sub.expression}|
+									{array_values} left_bracket value next_value* right_bracket {-> New expression.array_values(value, [next_value])};	
+	
+	functioncall = {call} id left_parenthesis arglist? right_parenthesis {-> New functioncall.calling(id, arglist)};
+		
+	arglist = {argument_list} expr_add_sub {-> New arglist.single_arg(expr_add_sub.expression)} |
+				{arguments_list} arglist comma expr_add_sub {-> New arglist.multi_arg(arglist, expr_add_sub.expression)};
+	
+	next_value = {next_value} comma value {-> New next_value.comma(value)};
+	
+	value =	{num} num |
+			{string} string;
+	
+	
+	
+	
+Abstract Syntax Tree
+
+	goal = command*;
+	command = {function} function |
+				{statement} statement;
+	function = {define} id argument statement;
+	
+	argument = {single} id equal_value |
+				{listof} argument id equal_value;
+				
+	equal_value = {equal} value;
+				
+	statement = {if} comparison statement|
+				{assign} id expression |
+				{print} expression |
+				{while} comparison statement |
+				{for} [first_identifier]:id [following_identifier]:id statement |
+				{return} expression |
+				{minus_equal} id expression |
+				{div_equal} id expression |
+				{array_assign} id [first_expression]:expression [following_expression]:expression |
+				{function_call} functioncall;
+				
+	comparison = {equal} [first_comp]:comparison [following_comp]:comparison |	
+				 {not_equal} [first_comp]:comparison [following_comp]:comparison |
+				 {greater} [first_expression]:expression [following_expression]:expression |
+				 {less} [first_expression]:expression [following_expression]:expression |
+				 {expression} expression |
+				 {true} true |
+				 {false} false;
+				
+	expression = {addition} [first_expression]:expression [following_expression]:expression |
+				 {substraction}	[first_expression]:expression [following_expression]:expression |
+				 {multiplication} [first_expression]:expression [following_expression]:expression |
+				 {division} [first_expression]:expression [following_expression]:expression |
+				 {identifier} id |
+				 {postfix_increase} expression |
+				 {postfix_decrease} expression |
+				 {prefix_increase} expression |
+				 {prefix_decrease} expression |
+				 {array_with_id} id expression |
+				 {function_call} functioncall |
+				 {value} value |
+				 {array_values} value next_value*;
+				 
+	functioncall = {calling} id arglist?;
+
+	arglist = 	{single_arg} expression |
+				{multi_arg} arglist expression;
+				
+	next_value = {comma} value;
+				 
+	value =	{num} num |
+			{string} string;			 
