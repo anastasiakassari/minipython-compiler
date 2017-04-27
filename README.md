@@ -1,6 +1,7 @@
 # MiniPython Compiler
 
   Created by: Anastasia Kassari, Kapniaris Alexandros, Gardelis Stavros, Giannakopoulos Theodoros
+  
   Date started: November 2016
   Date finished: January 2017
   
